@@ -1,0 +1,3 @@
+# Project exclude paths
+/distributed-timed-task-demo/target/
+/distributed-timed-task-starter/target/
