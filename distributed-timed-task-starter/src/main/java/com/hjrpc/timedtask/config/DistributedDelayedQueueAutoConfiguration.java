@@ -3,6 +3,7 @@ package com.hjrpc.timedtask.config;
 import com.hjrpc.timedtask.DistributedDelayedQueue;
 import com.hjrpc.timedtask.DistributedDelayedQueueInit;
 import com.hjrpc.timedtask.DistributedDelayedQueueListener;
+import lombok.RequiredArgsConstructor;
 import org.redisson.api.RedissonClient;
 import org.redisson.spring.starter.RedissonAutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
@@ -12,16 +13,14 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.RedisTemplate;
 
-import javax.annotation.Resource;
 import java.util.List;
 
 @Configuration
 @AutoConfigureAfter({RedisAutoConfiguration.class, RedissonAutoConfiguration.class})
+@RequiredArgsConstructor
 public class DistributedDelayedQueueAutoConfiguration {
-    @Resource
-    private RedissonClient redissonClient;
-    @Resource
-    private RedisTemplate<String, String> redisTemplate;
+    private final RedissonClient redissonClient;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     @Bean
     public DistributedDelayedQueue distributedDelayedQueue() {

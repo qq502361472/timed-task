@@ -9,7 +9,7 @@ public interface DistributedDelayedQueueListener<T> {
     /**
      * 重启后初始化待监听的数据到分布式延时队列，需要支持幂等
      */
-    void init();
+    default void init(){};
 
     /**
      * 监听到消息执行调用的方法     * @param t 泛型参数
