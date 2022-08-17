@@ -11,6 +11,7 @@ import org.springframework.util.CollectionUtils;
 import reactor.util.annotation.NonNull;
 
 import javax.annotation.PreDestroy;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -23,9 +24,10 @@ public class DistributedDelayedQueueInit implements ApplicationListener<Applicat
     private final RedisTemplate<String, Object> redisTemplate;
     private final ExecutorService executor = Executors.newFixedThreadPool(10, r -> {
         Thread thread = new Thread(r);
-        thread.setName("delay-task-");
+        thread.setName("delay-base");
         return thread;
     });
+    private final List<Thread> businessThread = new ArrayList<>();
     public static final String LOCK_PREFIX = "DISTRIBUTED_DELAYED_QUEUE_INIT_LOCK";
     public static final String FLAG_PREFIX = "DISTRIBUTED_DELAYED_QUEUE_INIT_FLAG";
 
@@ -38,9 +40,10 @@ public class DistributedDelayedQueueInit implements ApplicationListener<Applicat
 
     @PreDestroy
     public void destroy() {
-        log.info("开始销毁延时队列任务监听线程...");
+        log.info("开始销毁延时队列任务监听和业务线程...");
         executor.shutdown();
-        log.info("结束销毁延时队列任务监听线程...");
+        businessThread.forEach(Thread::interrupt);
+        log.info("结束销毁延时队列任务监听和业务线程...");
     }
 
     /**
@@ -51,7 +54,7 @@ public class DistributedDelayedQueueInit implements ApplicationListener<Applicat
      * @param <T>       泛型
      */
     private <T> void startThread(String queueName, DistributedDelayedQueueListener<T> listener) {
-        executor.execute(() -> {
+        Thread thread = new Thread(() -> {
             while (!Thread.currentThread().isInterrupted()) {
                 RBlockingQueue<T> blockingFairQueue = redissonClient.getBlockingQueue(queueName);
                 redissonClient.getDelayedQueue(blockingFairQueue);
@@ -70,6 +73,10 @@ public class DistributedDelayedQueueInit implements ApplicationListener<Applicat
                 }
             }
         });
+        thread.setName("delay-business");
+        thread.start();
+        // 缓存线程，方便停止的时候释放
+        businessThread.add(thread);
         log.info("=====>启动监听任务{}成功...", queueName);
     }
 
@@ -81,8 +88,8 @@ public class DistributedDelayedQueueInit implements ApplicationListener<Applicat
         log.info("===> 开始初始化分布式延时队列 ...");
         // 读取所有监听器（实现DistributedDelayedQueueListener接口，且注入到spring的bean）
         for (DistributedDelayedQueueListener<?> listener : distributedDelayedQueueListenerList) {
-            // 获取监听器的class名称作为一个延时队列的名称（这里获取的是子类名）
-            String className = listener.getClass().getName();
+            // 获取监听器的class名称作为一个延时队列的名称（这里获取的是子类名）,如果是走代理的话，这里获取特殊处理一下
+            String className = handlerListenerClassName(listener);
             // 给不同的延时队列名创建对应的延时队列
             startThread(className, listener);
             // 上分布式锁
@@ -101,5 +108,14 @@ public class DistributedDelayedQueueInit implements ApplicationListener<Applicat
             }
         }
         log.info("===> 延时队列初始化完成 ...");
+    }
+
+    private String handlerListenerClassName(DistributedDelayedQueueListener<?> listener) {
+        String name = listener.getClass().getName();
+        int index = name.indexOf("$");
+        if (index >= 0) {
+            name = name.substring(0, index);
+        }
+        return name;
     }
 }
