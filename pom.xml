@@ -15,6 +15,7 @@
     <modules>
         <module>distributed-timed-task-starter</module>
         <module>distributed-timed-task-demo</module>
+        <module>delay-task-starter</module>
     </modules>
 
     <properties>

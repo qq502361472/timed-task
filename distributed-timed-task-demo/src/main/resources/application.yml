@@ -2,3 +2,18 @@ spring:
   redis:
     host: 192.168.56.102
     port: 6379
+  rabbitmq:
+    host: 192.168.56.102
+    username: root
+    password: root
+    port: 5672
+    virtual-host: /
+    listener:
+      simple:
+        prefetch: 10
+        acknowledge-mode: auto
+        concurrency: 5
+        max-concurrency: 10
+    publisher-returns: true
+    publisher-confirms: true
+    publisher-confirm-type: simple
